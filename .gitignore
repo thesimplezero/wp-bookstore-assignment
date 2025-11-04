@@ -1,1 +1,3 @@
 .env.env
+*.log
+wp-content/uploads/wc-logs/
