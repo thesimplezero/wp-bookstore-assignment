@@ -25,4 +25,4 @@ When books are imported via the REST endpoint `/wp-json/bookstore/v1/import`, th
 - **Error Handling:** Returns detailed status for each import operation.
 
 ## Data Flow
-The import process handles each book sequentially — creating both the Book CPT and WooCommerce product, then establishing the bidirectional link through post metadata for future synchronization needs.
+The import process handles each book sequentially, creating both the Book CPT and WooCommerce product, then establishing the bidirectional link through post metadata for future synchronization needs.
