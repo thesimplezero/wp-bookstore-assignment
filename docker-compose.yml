@@ -1,0 +1,87 @@
+version: '3.9'
+
+services:
+  wordpress:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: wp-bookstore:local
+    container_name: wp-bookstore_app
+    ports:
+      - "${WP_PORT:-8080}:80"
+    env_file: .env
+    environment:
+      WORDPRESS_DB_HOST: "${DB_HOST:-db:3306}"
+      WORDPRESS_DB_USER: "${DB_USER:-wordpress}"
+      WORDPRESS_DB_PASSWORD: "${DB_PASSWORD:-wordpress}"
+      WORDPRESS_DB_NAME: "${DB_NAME:-wordpress}"
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_DEBUG', ${WP_DEBUG:-false});
+        define('WP_DEBUG_LOG', ${WP_DEBUG_LOG:-false});
+        define('WP_DEBUG_DISPLAY', ${WP_DEBUG_DISPLAY:-false});
+        define('FS_METHOD', '${FS_METHOD:-direct}');
+        define('AUTOMATIC_UPDATER_DISABLED', ${AUTOMATIC_UPDATER_DISABLED:-true});
+        define('DISALLOW_FILE_EDIT', ${DISALLOW_FILE_EDIT:-true});
+    volumes:
+      - ./wp-content:/var/www/html/wp-content
+      - ./uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - wp-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  db:
+    image: mariadb:11
+    container_name: wp-bookstore_db
+    env_file: .env
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-root}"
+      MYSQL_DATABASE: "${DB_NAME:-wordpress}"
+      MYSQL_USER: "${DB_USER:-wordpress}"
+      MYSQL_PASSWORD: "${DB_PASSWORD:-wordpress}"
+      MARIADB_AUTO_UPGRADE: "1"
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+      - wp-network
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_allowed_packet=256M
+      - --innodb_buffer_pool_size=512M
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  adminer:
+    image: adminer
+    container_name: wp-bookstore_adminer
+    restart: unless-stopped
+    ports:
+      - "${ADMINER_PORT:-8081}:8080"
+    depends_on:
+      - db
+    networks:
+      - wp-network
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+
+volumes:
+  db_data:
+    name: wp_bookstore_db_data
+
+networks:
+  wp-network:
+    driver: bridge
